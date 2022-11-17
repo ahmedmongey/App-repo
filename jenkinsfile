@@ -21,7 +21,7 @@ pipeline {
         stage('deploy') {
             steps {
                 script {
-                      withCredentials([file(credentialsId: "kubernetes" , variable: 'CONFIG' )]){
+                      withCredentials([file(credentialsId: "kubeconfig" , variable: 'CONFIG' )]){
                         sh """
                            export BUILD_NUMBER=\$(cat ../build.txt
                            gcloud auth activate-service-account manage-sa@mongy-367814.iam.gserviceaccount.com   --key-file="$GCLOUD"
