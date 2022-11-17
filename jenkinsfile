@@ -1,21 +1,36 @@
 pipeline {
-	agent none
-  stages {
-  	stage('Maven Install') {
-    	agent {
-      	docker {
-        	image 'maven:3.5.0'
+    agent { label 'slave' }
+    environment {
+    GCLOUD=credentials('gcloud')
+    }
+    stages {
+        stage('build') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: "dockerhub" , usernameVariable: 'USER' , passwordVariable: 'PASS')]){
+                        sh """
+                            docker login -u ${USER} -p ${PASS}
+                            docker build -t ahmedmongey/new-graduation-image-:${BUILD_NUMBER} .
+                            docker push ahmedmongey/new-graduation-image:${BUILD_NUMBER}
+                            echo ${BUILD_NUMBER} > ../build.txt
+                           """
+                    }
+                }
+            }
         }
-      }
-      steps {
-      	sh 'mvn clean install'
-      }
+        stage('deploy') {
+            steps {
+                script {
+                      withCredentials([file(credentialsId: "kubernetes" , variable: 'CONFIG' )]){
+                        sh """
+                           export BUILD_NUMBER=\$(cat ../build.txt
+                           gcloud auth activate-service-account manage-sa@mongy-367814.iam.gserviceaccount.com   --key-file="$GCLOUD"
+                           gcloud container clusters get-credentials primary --zone us-central1-a --project mongy-367814
+                           kubectl apply -f Deployment --kubeconfig=${CONFIG}
+                           """
+                      }
+                }
+            }
+        }
     }
-    stage('Docker Build') {
-    	agent any
-      steps {
-      	sh 'docker build -t shanem/spring-petclinic:latest .'
-      }
-    }
-  }
 }
